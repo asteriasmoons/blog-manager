@@ -183,6 +183,9 @@ export default function CreatePostScreen() {
                   onChangeText={setContent}
                   placeholder="Write your post here..."
                   multiline
+                  scrollEnabled
+                  style={{ height: 420 }}
+                  textAlignVertical="top"
                 />
               </Card>
 
