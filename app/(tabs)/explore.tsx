@@ -121,7 +121,7 @@ export default function CreatePostScreen() {
           <Screen>
             <ScrollView
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
+              contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
             >
               <ThemedText variant="h1">Create New Post</ThemedText>
               <ThemedText variant="muted">
@@ -181,11 +181,10 @@ export default function CreatePostScreen() {
                   }
                   value={content}
                   onChangeText={setContent}
-                  placeholder="Write your post here..."
+                  placeholder="Write your post content here..."
                   multiline
-                  scrollEnabled
-                  style={{ height: 420 }}
                   textAlignVertical="top"
+                  style={{ minHeight: 420 }} // <-- grows beyond this (no max height)
                 />
               </Card>
 
