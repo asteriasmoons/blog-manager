@@ -29,6 +29,13 @@ export default function PostsTab() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem("github_token");
+    Alert.alert("Logged out", "Token cleared", [
+      { text: "OK", onPress: () => router.replace("/login") },
+    ]);
+  };
+
   const requireLogin = useCallback(async () => {
     const token = await AsyncStorage.getItem("github_token");
     if (!token) {
@@ -42,10 +49,17 @@ export default function PostsTab() {
     const ok = await requireLogin();
     if (!ok) return;
 
+    console.log("🔵 Starting to load posts...");
+
     try {
+      console.log("🔵 Calling githubAPI.getPosts()");
       const data = await githubAPI.getPosts();
+      console.log("🟢 Posts loaded:", data.length, "posts");
+      console.log("🟢 First post:", data[0]?.name);
       setPosts(data);
     } catch (e) {
+      console.log("🔴 ERROR:", e);
+      console.log("🔴 Error message:", e.message);
       Alert.alert("Error", "Could not load posts");
     } finally {
       setLoading(false);
@@ -66,7 +80,6 @@ export default function PostsTab() {
   }, [loadPosts]);
 
   const openPost = (post: Post) => {
-    // slug should include the .mdx if your file is named that way
     router.push(`/edit/${post.name}`);
   };
 
@@ -94,6 +107,11 @@ export default function PostsTab() {
               <ThemedText variant="h1">Posts</ThemedText>
               <ThemedText variant="muted">Tap a post to edit it.</ThemedText>
               <GhostButton title="Refresh" onPress={onRefresh} icon="refresh" />
+              <GhostButton
+                title="Logout & Clear Token"
+                onPress={handleLogout}
+                icon="log-out"
+              />
             </View>
 
             <FlatList

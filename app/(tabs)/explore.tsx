@@ -57,7 +57,7 @@ export default function CreatePostScreen() {
         title: title.trim(),
         description: description?.trim() || "",
         coverImage: coverImage?.trim() || "",
-        pubDate: new Date().toISOString(),
+        pubDate: new Date().toISOString().split("T")[0], // Just YYYY-MM-DD
       };
 
       // CREATE = savePost with NO sha
@@ -79,8 +79,8 @@ export default function CreatePostScreen() {
 
       Alert.alert("Success", "Post created!", [
         {
-          text: "Edit Post",
-          onPress: () => router.replace(`/edit/${filename}`),
+          text: "View Posts",
+          onPress: () => router.push("/(tabs)"),
         },
       ]);
     } catch (error) {

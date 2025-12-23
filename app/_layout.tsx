@@ -42,10 +42,6 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
-          name="post/[slug]"
-          options={{ headerShown: true, title: "Post" }}
-        />
-        <Stack.Screen
           name="edit/[slug]"
           options={{ headerShown: true, title: "Edit Post" }}
         />

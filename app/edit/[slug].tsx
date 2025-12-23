@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   ScrollView,
   View,
@@ -44,40 +44,31 @@ export default function EditPostScreen() {
   const [description, setDescription] = useState("");
   const [coverImage, setCoverImage] = useState("");
   const [content, setContent] = useState("");
+  const [originalPubDate, setOriginalPubDate] = useState(""); 
 
-  useEffect(() => {
-    loadPost();
-  }, []);
-
-  const loadPost = async () => {
+  const loadPost = useCallback(async () => {
     try {
       const rawContent = await githubAPI.getPost(slug as string);
       const { frontmatter, content: bodyContent } = parseMDX(rawContent);
 
       setTitle(frontmatter.title || "");
       setDescription(frontmatter.description || "");
+	  setOriginalPubDate(frontmatter.pubDate || "");
       setCoverImage(frontmatter.coverImage || "");
       setContent(bodyContent);
 
-      const response = await fetch(
-        `https://api.github.com/repos/${githubAPI.REPO_OWNER}/${githubAPI.REPO_NAME}/contents/src/content/posts/${slug}`,
-        {
-          headers: {
-            Authorization: `token ${await AsyncStorage.getItem(
-              "github_token"
-            )}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-      setSha(data.sha);
+	  const meta = await githubAPI.getPostMeta(slug as string);
+    setSha(meta.sha);
     } catch (error) {
       Alert.alert("Error", "Could not load post");
     } finally {
       setLoading(false);
     }
-  };
+  }, [slug]);
+
+  useEffect(() => {
+    loadPost();
+  }, [loadPost]);
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -87,14 +78,19 @@ export default function EditPostScreen() {
 
     setSaving(true);
     try {
-      const frontmatter = { title, description, coverImage };
+      const frontmatter = {
+        title,
+        description,
+        coverImage,
+        pubDate: originalPubDate,
+      };
       await githubAPI.savePost(slug as string, frontmatter, content, sha);
 
       Alert.alert("Success", "Post updated!", [
         { text: "OK", onPress: () => router.back() },
       ]);
-    } catch (error) {
-      Alert.alert("Error", "Could not save post");
+    } catch (error: any) {
+      Alert.alert("Error", error?.message || "Could not save post");
     } finally {
       setSaving(false);
     }
@@ -147,7 +143,7 @@ export default function EditPostScreen() {
           headerTitleStyle: { color: lystaria.colors.text },
           headerLeft: () => (
             <Pressable
-              onPress={() => router.back()}
+              onPress={() => router.push("/(tabs)")}
               style={{ paddingHorizontal: 12 }}
             >
               <Ionicons
@@ -167,8 +163,16 @@ export default function EditPostScreen() {
         >
           <Screen>
             <ScrollView
+              // These three lines are what make “scroll to the bottom while keyboard is open” work reliably on iOS
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ gap: 12, paddingBottom: 120 }}
+              keyboardDismissMode={
+                Platform.OS === "ios" ? "interactive" : "on-drag"
+              }
+              automaticallyAdjustKeyboardInsets={true}
+              contentContainerStyle={{
+                gap: 12,
+                paddingBottom: 220, // <- big bottom space so the last lines can scroll above the keyboard
+              }}
             >
               <ThemedText variant="h1">{prettyTitle}</ThemedText>
               <ThemedText variant="muted">
@@ -199,6 +203,7 @@ export default function EditPostScreen() {
                   placeholder="A short description"
                   multiline
                   style={{ minHeight: 90 }}
+                  textAlignVertical="top"
                 />
               </Card>
 
@@ -227,7 +232,8 @@ export default function EditPostScreen() {
                   placeholder="Write your post content here..."
                   multiline
                   textAlignVertical="top"
-                  style={{ minHeight: 420 }} // <-- grows beyond this (no max height)
+                  // “infinite” feel: it can grow, but starts large enough to be usable
+                  style={{ minHeight: 520 }}
                 />
               </Card>
 

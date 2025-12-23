@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Alert, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Alert, View, Pressable } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, Stack } from "expo-router";
 
@@ -10,34 +10,53 @@ import { ThemedInput } from "@/components/ui/ThemedInput";
 import { PrimaryButton } from "@/components/ui/Buttons";
 import { lystaria } from "@/src/theme/lystariaTheme";
 
+import { CONFIG } from "@/src/config";
+
 export default function LoginScreen() {
-  const [token, setToken] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // If token already exists, skip login
+  useEffect(() => {
+    (async () => {
+      const token = await AsyncStorage.getItem("github_token");
+      if (token) router.replace("/(tabs)");
+    })();
+  }, []);
+
+  const forceLogout = async () => {
+    await AsyncStorage.removeItem("github_token");
+    Alert.alert("Logged out", "Token cleared. Now login again.");
+  };
+
   const handleLogin = async () => {
-    if (!token.trim()) {
-      Alert.alert("Error", "Please enter your GitHub token");
+    const input = password.trim();
+    if (!input) {
+      Alert.alert("Error", "Please enter your password");
       return;
     }
 
     setLoading(true);
     try {
-      const response = await fetch("https://api.github.com/user", {
-        headers: { Authorization: `token ${token.trim()}` },
-      });
-
-      if (!response.ok) {
-        Alert.alert("Error", "Invalid token. Please check and try again.");
+      if (input !== CONFIG.APP_PASSWORD) {
+        Alert.alert("Error", "Incorrect password");
         return;
       }
 
-      await AsyncStorage.setItem("github_token", token.trim());
-      Alert.alert("Success", "Logged in successfully!");
+      if (!CONFIG.GITHUB_TOKEN) {
+        Alert.alert(
+          "Missing Token",
+          "CONFIG.GITHUB_TOKEN is missing. Add your token to config."
+        );
+        return;
+      }
 
-      // With expo-router, route to your tabs (Posts tab will show)
+      await AsyncStorage.setItem("github_token", CONFIG.GITHUB_TOKEN.trim());
+
+      Alert.alert("Success", "Unlocked!");
       router.replace("/(tabs)");
-    } catch (error) {
-      Alert.alert("Error", "Could not verify token. Check your connection.");
+    } catch (error: any) {
+      Alert.alert("Error", error?.message || "Could not log in");
     } finally {
       setLoading(false);
     }
@@ -64,26 +83,41 @@ export default function LoginScreen() {
             variant="muted"
             style={{ textAlign: "center", marginBottom: 6 }}
           >
-            Enter your GitHub Personal Access Token
+            Enter your app password to unlock.
           </ThemedText>
 
           <Card strong>
-            <ThemedText variant="label">GitHub Token</ThemedText>
+            <ThemedText variant="label">Password</ThemedText>
             <ThemedInput
-              placeholder="ghp_xxxxxxxxxxxx"
-              value={token}
-              onChangeText={setToken}
+              placeholder="Enter password"
+              value={password}
+              onChangeText={setPassword}
               autoCapitalize="none"
               autoCorrect={false}
-              secureTextEntry
+              secureTextEntry={false}
             />
           </Card>
 
+          <Pressable
+            onPress={forceLogout}
+            style={{
+              padding: 12,
+              alignItems: "center",
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: lystaria.colors.accent,
+            }}
+          >
+            <ThemedText style={{ color: lystaria.colors.accent }}>
+              Clear Token (Force Logout)
+            </ThemedText>
+          </Pressable>
+
           <PrimaryButton
-            title={loading ? "Logging in..." : "Login"}
+            title={loading ? "Unlocking..." : "Unlock"}
             onPress={handleLogin}
             disabled={loading}
-            icon="log-in"
+            icon="lock-open"
           />
         </View>
       </Screen>
