@@ -1,3 +1,4 @@
+// app/(tabs)/explore.tsx
 // @ts-nocheck
 import { useState } from "react";
 import {
@@ -20,6 +21,7 @@ import { ThemedText } from "@/components/ui/ThemedText";
 import { ThemedInput } from "@/components/ui/ThemedInput";
 import { PrimaryButton, GhostButton } from "@/components/ui/Buttons";
 import { lystaria } from "@/src/theme/lystariaTheme";
+
 import { githubAPI } from "@/src/services/githubAPI";
 
 export default function CreatePostScreen() {
@@ -37,6 +39,8 @@ export default function CreatePostScreen() {
       .trim()
       .replace(/[^\w\s-]/g, "")
       .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
       .concat(".mdx");
 
   const handleCreate = async () => {
@@ -45,22 +49,38 @@ export default function CreatePostScreen() {
       return;
     }
 
-    const slug = slugFromTitle(title);
+    const filename = slugFromTitle(title);
 
     setSaving(true);
     try {
       const frontmatter = {
-        title,
-        description,
-        coverImage,
+        title: title.trim(),
+        description: description?.trim() || "",
+        coverImage: coverImage?.trim() || "",
+        pubDate: new Date().toISOString(),
       };
 
-      await githubAPI.createPost(slug, frontmatter, content);
+      // CREATE = savePost with NO sha
+      const result = await githubAPI.savePost(filename, frontmatter, content);
+
+      // GitHub sometimes returns errors as JSON too — catch obvious ones
+      if (result?.message && !result?.content) {
+        // Examples: "Invalid request", "Not Found", etc.
+        Alert.alert("Error", result.message);
+        return;
+      }
+
+      // If the file already exists, GitHub often responds with 422 + a message
+      // Your wrapper returns JSON, so this is our friendly fallback:
+      if (result?.status === 422) {
+        Alert.alert("Error", "A post with that name already exists.");
+        return;
+      }
 
       Alert.alert("Success", "Post created!", [
         {
           text: "Edit Post",
-          onPress: () => router.replace(`/edit/${slug}`),
+          onPress: () => router.replace(`/edit/${filename}`),
         },
       ]);
     } catch (error) {
@@ -119,6 +139,10 @@ export default function CreatePostScreen() {
                   placeholder="Post title"
                   returnKeyType="done"
                 />
+                <View style={{ height: 10 }} />
+                <ThemedText variant="muted">
+                  Filename: {title.trim() ? slugFromTitle(title) : "—"}
+                </ThemedText>
               </Card>
 
               <Card>
