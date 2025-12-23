@@ -1,38 +1,34 @@
-import { useEffect, useState } from "react";
-import { Stack, useRouter, useSegments } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
-export default function RootLayout() {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
-  const segments = useSegments();
-  const router = useRouter();
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    const token = await AsyncStorage.getItem("github_token");
-    setIsLoggedIn(!!token);
-  };
-
-  useEffect(() => {
-    if (isLoggedIn === null) return; // Still loading
-
-    const inAuthGroup = segments[0] === "(tabs)";
-
-    if (!isLoggedIn && inAuthGroup) {
-      router.replace("/login");
-    } else if (isLoggedIn && !inAuthGroup) {
-      router.replace("/(tabs)");
-    }
-  }, [isLoggedIn, segments, router]); // Added router here
-
+export default function TabLayout() {
   return (
-    <Stack>
-      <Stack.Screen name="login" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="edit/[slug]" options={{ title: "Edit Post" }} />
-    </Stack>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: "#6366f1",
+        headerShown: true,
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Posts",
+          headerTitle: "My Blog Posts",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="list" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: "Create",
+          headerTitle: "New Post",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="add-circle" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
   );
 }
