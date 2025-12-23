@@ -1,35 +1,38 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { useEffect, useState } from "react";
+import { Stack, useRouter, useSegments } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+export default function RootLayout() {
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const segments = useSegments();
+  const router = useRouter();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    const token = await AsyncStorage.getItem("github_token");
+    setIsLoggedIn(!!token);
+  };
+
+  useEffect(() => {
+    if (isLoggedIn === null) return; // Still loading
+
+    const inAuthGroup = segments[0] === "(tabs)";
+
+    if (!isLoggedIn && inAuthGroup) {
+      router.replace("/login");
+    } else if (isLoggedIn && !inAuthGroup) {
+      router.replace("/(tabs)");
+    }
+  }, [isLoggedIn, segments, router]); // Added router here
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-    </Tabs>
+    <Stack>
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="edit/[slug]" options={{ title: "Edit Post" }} />
+    </Stack>
   );
 }
