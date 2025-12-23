@@ -11,21 +11,42 @@ import { PrimaryButton } from "@/components/ui/Buttons";
 import { lystaria } from "@/src/theme/lystariaTheme";
 
 import { CONFIG } from "@/src/config";
+import { Linking } from "react-native";
+
+
+const LOCK_KEY = "app_locked"; // "1" locked, "0" unlocked (or missing)
 
 export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // If token already exists, skip login
+  // If token exists AND we're not locked, skip login
   useEffect(() => {
     (async () => {
       const token = await AsyncStorage.getItem("github_token");
-      if (token) router.replace("/(tabs)");
+      const locked = await AsyncStorage.getItem(LOCK_KEY);
+
+      if (token && locked !== "1") {
+        router.replace("/(tabs)");
+      }
     })();
   }, []);
 
+  const backToExpoGo = async () => {
+    const url = "exp://";
+    const supported = await Linking.canOpenURL(url);
+
+    if (supported) {
+      Linking.openURL(url);
+    } else {
+      Alert.alert("Unavailable", "Expo Go is not available on this device.");
+    }
+  };
+
+
   const forceLogout = async () => {
     await AsyncStorage.removeItem("github_token");
+    await AsyncStorage.setItem(LOCK_KEY, "1");
     Alert.alert("Logged out", "Token cleared. Now login again.");
   };
 
@@ -52,6 +73,7 @@ export default function LoginScreen() {
       }
 
       await AsyncStorage.setItem("github_token", CONFIG.GITHUB_TOKEN.trim());
+      await AsyncStorage.setItem(LOCK_KEY, "0");
 
       Alert.alert("Success", "Unlocked!");
       router.replace("/(tabs)");
@@ -111,6 +133,19 @@ export default function LoginScreen() {
             <ThemedText style={{ color: lystaria.colors.accent }}>
               Clear Token (Force Logout)
             </ThemedText>
+          </Pressable>
+
+          <Pressable
+            onPress={backToExpoGo}
+            style={{
+              padding: 12,
+              alignItems: "center",
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: lystaria.colors.border,
+            }}
+          >
+            <ThemedText variant="muted">Back to Expo Go</ThemedText>
           </Pressable>
 
           <PrimaryButton

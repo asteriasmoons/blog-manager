@@ -79,7 +79,8 @@ export default function PostsTab() {
     }
   }, [loadPosts]);
 
-  const openPost = (post: Post) => {
+  const openPost = async (post: Post) => {
+    await AsyncStorage.setItem("last_opened_slug", post.name);
     router.push(`/edit/${post.name}`);
   };
 

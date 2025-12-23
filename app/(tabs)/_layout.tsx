@@ -19,6 +19,16 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
+        name="home"
+        options={{
+          title: "Home",
+          headerTitle: "Blog Manager",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
           title: "Posts",
