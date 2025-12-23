@@ -1,12 +1,21 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { lystaria } from "../../src/theme/lystariaTheme";
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#6366f1",
         headerShown: true,
+        tabBarActiveTintColor: lystaria.colors.accent,
+        tabBarInactiveTintColor: lystaria.colors.textMuted,
+        tabBarStyle: {
+          backgroundColor: lystaria.colors.bg,
+          borderTopColor: lystaria.colors.border,
+        },
+        headerStyle: { backgroundColor: lystaria.colors.bg },
+        headerTitleStyle: { color: lystaria.colors.text },
+        headerTintColor: lystaria.colors.text,
       }}
     >
       <Tabs.Screen

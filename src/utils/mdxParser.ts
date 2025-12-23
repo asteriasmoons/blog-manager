@@ -1,11 +1,11 @@
-export const parseMDX = (content) => {
+export const parseMDX = (content: string) => {
   const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-  if (!match) return { frontmatter: {}, content };
+  if (!match) return { frontmatter: {}, content: "" };
 
   const frontmatterText = match[1];
   const bodyContent = match[2];
 
-  const frontmatter = {};
+  const frontmatter: any = {};
   frontmatterText.split("\n").forEach((line) => {
     const [key, ...valueParts] = line.split(":");
     if (key && valueParts.length) {

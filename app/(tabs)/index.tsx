@@ -1,104 +1,139 @@
 // @ts-nocheck
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { githubAPI } from "../../src/services/githubAPI";
+import { Stack, router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-interface Post {
+import { githubAPI } from "@/src/services/githubAPI";
+import { Screen } from "@/components/ui/Screen";
+import { Card } from "@/components/ui/Card";
+import { ThemedText } from "@/components/ui/ThemedText";
+import { GhostButton } from "@/components/ui/Buttons";
+import { lystaria } from "@/src/theme/lystariaTheme";
+
+type Post = {
   name: string;
   sha: string;
   path: string;
-}
+};
 
-export default function PostListScreen() {
+export default function PostsTab() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadPosts();
+  const requireLogin = useCallback(async () => {
+    const token = await AsyncStorage.getItem("github_token");
+    if (!token) {
+      router.replace("/login");
+      return false;
+    }
+    return true;
   }, []);
 
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
+    const ok = await requireLogin();
+    if (!ok) return;
+
     try {
-      console.log("Loading posts...");
       const data = await githubAPI.getPosts();
-      console.log("Posts data:", data);
       setPosts(data);
-    } catch (error) {
-      console.log("Error loading posts:", error);
+    } catch (e) {
       Alert.alert("Error", "Could not load posts");
     } finally {
       setLoading(false);
     }
-  };
+  }, [requireLogin]);
 
-  const handlePostPress = (post: Post) => {
+  useEffect(() => {
+    loadPosts();
+  }, [loadPosts]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadPosts();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadPosts]);
+
+  const openPost = (post: Post) => {
+    // slug should include the .mdx if your file is named that way
     router.push(`/edit/${post.name}`);
   };
 
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.sha}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.postItem}
-            onPress={() => handlePostPress(item)}
-          >
-            <Text style={styles.postTitle}>
-              {item.name.replace(".mdx", "")}
-            </Text>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={styles.centered}>
-            <Text style={styles.emptyText}>No posts yet</Text>
-          </View>
-        }
+    <>
+      <Stack.Screen
+        options={{
+          title: "Posts",
+          headerStyle: { backgroundColor: lystaria.colors.bg },
+          headerTintColor: lystaria.colors.text,
+          headerTitleStyle: { color: lystaria.colors.text },
+        }}
       />
-    </View>
+
+      <Screen>
+        {loading ? (
+          <View
+            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+          >
+            <ActivityIndicator size="large" color={lystaria.colors.accent} />
+          </View>
+        ) : (
+          <>
+            <View style={{ marginBottom: 12, gap: 8 }}>
+              <ThemedText variant="h1">Posts</ThemedText>
+              <ThemedText variant="muted">Tap a post to edit it.</ThemedText>
+              <GhostButton title="Refresh" onPress={onRefresh} icon="refresh" />
+            </View>
+
+            <FlatList
+              data={posts}
+              keyExtractor={(item) => item.sha}
+              contentContainerStyle={{
+                gap: lystaria.spacing.gap,
+                paddingBottom: 24,
+              }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={lystaria.colors.accent}
+                />
+              }
+              renderItem={({ item }) => (
+                <Pressable onPress={() => openPost(item)}>
+                  <Card>
+                    <ThemedText variant="h2" numberOfLines={1}>
+                      {item.name.replace(".mdx", "")}
+                    </ThemedText>
+                    <ThemedText variant="muted" numberOfLines={1}>
+                      {item.name}
+                    </ThemedText>
+                  </Card>
+                </Pressable>
+              )}
+              ListEmptyComponent={
+                <Card strong>
+                  <ThemedText variant="h2">No posts yet</ThemedText>
+                  <ThemedText variant="muted">
+                    Head to Create to make your first post.
+                  </ThemedText>
+                </Card>
+              }
+            />
+          </>
+        )}
+      </Screen>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  postItem: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  postTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#999",
-  },
-});

@@ -1,80 +1,147 @@
 // @ts-nocheck
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ScrollView,
   View,
+  ActivityIndicator,
   Alert,
+  Pressable,
   Keyboard,
   TouchableWithoutFeedback,
   Platform,
   InputAccessoryView,
   KeyboardAvoidingView,
-  Pressable,
 } from "react-native";
-import { Stack, router } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+
+import { githubAPI } from "../../src/services/githubAPI";
+import { parseMDX } from "../../src/utils/mdxParser";
 
 import { Screen } from "@/components/ui/Screen";
 import { Card } from "@/components/ui/Card";
 import { ThemedText } from "@/components/ui/ThemedText";
 import { ThemedInput } from "@/components/ui/ThemedInput";
-import { PrimaryButton, GhostButton } from "@/components/ui/Buttons";
-import { lystaria } from "@/src/theme/lystariaTheme";
-import { githubAPI } from "@/src/services/githubAPI";
+import {
+  PrimaryButton,
+  DangerButton,
+  GhostButton,
+} from "@/components/ui/Buttons";
+import { lystaria } from "../../src/theme/lystariaTheme";
 
-export default function CreatePostScreen() {
-  const accessoryId = "createKeyboard";
+export default function EditPostScreen() {
+  const { slug } = useLocalSearchParams();
+  const router = useRouter();
+
+  const accessoryId = "editKeyboard";
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [sha, setSha] = useState("");
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [coverImage, setCoverImage] = useState("");
   const [content, setContent] = useState("");
-  const [saving, setSaving] = useState(false);
 
-  const slugFromTitle = (value: string) =>
-    value
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .concat(".mdx");
+  useEffect(() => {
+    loadPost();
+  }, []);
 
-  const handleCreate = async () => {
+  const loadPost = async () => {
+    try {
+      const rawContent = await githubAPI.getPost(slug as string);
+      const { frontmatter, content: bodyContent } = parseMDX(rawContent);
+
+      setTitle(frontmatter.title || "");
+      setDescription(frontmatter.description || "");
+      setCoverImage(frontmatter.coverImage || "");
+      setContent(bodyContent);
+
+      const response = await fetch(
+        `https://api.github.com/repos/${githubAPI.REPO_OWNER}/${githubAPI.REPO_NAME}/contents/src/content/posts/${slug}`,
+        {
+          headers: {
+            Authorization: `token ${await AsyncStorage.getItem(
+              "github_token"
+            )}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      setSha(data.sha);
+    } catch (error) {
+      Alert.alert("Error", "Could not load post");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert("Error", "Title is required");
       return;
     }
 
-    const slug = slugFromTitle(title);
-
     setSaving(true);
     try {
-      const frontmatter = {
-        title,
-        description,
-        coverImage,
-      };
+      const frontmatter = { title, description, coverImage };
+      await githubAPI.savePost(slug as string, frontmatter, content, sha);
 
-      await githubAPI.createPost(slug, frontmatter, content);
-
-      Alert.alert("Success", "Post created!", [
-        {
-          text: "Edit Post",
-          onPress: () => router.replace(`/edit/${slug}`),
-        },
+      Alert.alert("Success", "Post updated!", [
+        { text: "OK", onPress: () => router.back() },
       ]);
     } catch (error) {
-      Alert.alert("Error", "Could not create post");
+      Alert.alert("Error", "Could not save post");
     } finally {
       setSaving(false);
     }
   };
 
+  const handleDelete = async () => {
+    Alert.alert("Delete Post", "Are you sure? This cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await githubAPI.deletePost(slug as string, sha);
+            Alert.alert("Deleted", "Post removed", [
+              { text: "OK", onPress: () => router.back() },
+            ]);
+          } catch (error) {
+            Alert.alert("Error", "Could not delete post");
+          }
+        },
+      },
+    ]);
+  };
+
+  if (loading) {
+    return (
+      <Screen>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <ActivityIndicator size="large" color={lystaria.colors.accent} />
+        </View>
+      </Screen>
+    );
+  }
+
+  const prettyTitle =
+    typeof slug === "string"
+      ? slug.replace(".mdx", "").replace(/-/g, " ")
+      : "Edit Post";
+
   return (
     <>
       <Stack.Screen
         options={{
-          title: "Create",
+          title: "Edit",
           headerStyle: { backgroundColor: lystaria.colors.bg },
           headerTintColor: lystaria.colors.text,
           headerTitleStyle: { color: lystaria.colors.text },
@@ -103,9 +170,9 @@ export default function CreatePostScreen() {
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
             >
-              <ThemedText variant="h1">Create New Post</ThemedText>
+              <ThemedText variant="h1">{prettyTitle}</ThemedText>
               <ThemedText variant="muted">
-                Start with a title — everything else can evolve.
+                Edit your frontmatter and MDX content.
               </ThemedText>
 
               <Card>
@@ -129,7 +196,7 @@ export default function CreatePostScreen() {
                   }
                   value={description}
                   onChangeText={setDescription}
-                  placeholder="Short summary (optional)"
+                  placeholder="A short description"
                   multiline
                   style={{ minHeight: 90 }}
                 />
@@ -157,22 +224,28 @@ export default function CreatePostScreen() {
                   }
                   value={content}
                   onChangeText={setContent}
-                  placeholder="Write your post here..."
+                  placeholder="Write your post content here..."
                   multiline
                 />
               </Card>
 
               <PrimaryButton
-                title={saving ? "Creating..." : "Create Post"}
-                onPress={handleCreate}
+                title={saving ? "Saving..." : "Update Post"}
+                onPress={handleSave}
                 disabled={saving}
                 icon="sparkles"
               />
 
               <GhostButton
-                title="Cancel"
+                title="Back"
                 onPress={() => router.back()}
-                icon="close"
+                icon="arrow-back"
+              />
+
+              <DangerButton
+                title="Delete Post"
+                onPress={handleDelete}
+                icon="trash"
               />
             </ScrollView>
           </Screen>

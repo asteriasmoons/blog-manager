@@ -1,68 +1,92 @@
 import { useState } from "react";
-import { View, TextInput, Button, StyleSheet, Text, Alert } from "react-native";
+import { Alert, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
-import { CONFIG } from "../src/config";
+import { router, Stack } from "expo-router";
+
+import { Screen } from "@/components/ui/Screen";
+import { Card } from "@/components/ui/Card";
+import { ThemedText } from "@/components/ui/ThemedText";
+import { ThemedInput } from "@/components/ui/ThemedInput";
+import { PrimaryButton } from "@/components/ui/Buttons";
+import { lystaria } from "@/src/theme/lystariaTheme";
 
 export default function LoginScreen() {
-  const [password, setPassword] = useState("");
-  const router = useRouter();
+  const [token, setToken] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (password === CONFIG.APP_PASSWORD) {
-      // Store the GitHub token from config
-      await AsyncStorage.setItem("github_token", CONFIG.GITHUB_TOKEN);
-      Alert.alert("Success", "Logged in!");
+    if (!token.trim()) {
+      Alert.alert("Error", "Please enter your GitHub token");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch("https://api.github.com/user", {
+        headers: { Authorization: `token ${token.trim()}` },
+      });
+
+      if (!response.ok) {
+        Alert.alert("Error", "Invalid token. Please check and try again.");
+        return;
+      }
+
+      await AsyncStorage.setItem("github_token", token.trim());
+      Alert.alert("Success", "Logged in successfully!");
+
+      // With expo-router, route to your tabs (Posts tab will show)
       router.replace("/(tabs)");
-    } else {
-      Alert.alert("Error", "Incorrect password");
+    } catch (error) {
+      Alert.alert("Error", "Could not verify token. Check your connection.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Blog Manager</Text>
-      <Text style={styles.subtitle}>Enter your password</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
+    <>
+      <Stack.Screen
+        options={{
+          title: "Login",
+          headerStyle: { backgroundColor: lystaria.colors.bg },
+          headerTintColor: lystaria.colors.text,
+          headerTitleStyle: { color: lystaria.colors.text },
+        }}
       />
 
-      <Button title="Login" onPress={handleLogin} />
-    </View>
+      <Screen>
+        <View style={{ flex: 1, justifyContent: "center", gap: 12 }}>
+          <ThemedText variant="h1" style={{ textAlign: "center" }}>
+            Blog Manager
+          </ThemedText>
+
+          <ThemedText
+            variant="muted"
+            style={{ textAlign: "center", marginBottom: 6 }}
+          >
+            Enter your GitHub Personal Access Token
+          </ThemedText>
+
+          <Card strong>
+            <ThemedText variant="label">GitHub Token</ThemedText>
+            <ThemedInput
+              placeholder="ghp_xxxxxxxxxxxx"
+              value={token}
+              onChangeText={setToken}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+            />
+          </Card>
+
+          <PrimaryButton
+            title={loading ? "Logging in..." : "Login"}
+            onPress={handleLogin}
+            disabled={loading}
+            icon="log-in"
+          />
+        </View>
+      </Screen>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 20,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 30,
-    textAlign: "center",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    fontSize: 16,
-  },
-});
