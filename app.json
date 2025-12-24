@@ -51,6 +51,12 @@
         "projectId": "28319a78-d5b1-4345-bdcc-372ce5ecda76"
       }
     },
-    "owner": "asteriamoon"
+    "owner": "asteriamoon",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/28319a78-d5b1-4345-bdcc-372ce5ecda76"
+    }
   }
 }
