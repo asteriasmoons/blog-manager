@@ -30,6 +30,10 @@ export default function CreatePostScreen() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [coverImage, setCoverImage] = useState("");
+
+  // NEW: tags (comma-separated in UI)
+  const [tags, setTags] = useState("");
+
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -42,6 +46,13 @@ export default function CreatePostScreen() {
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "")
       .concat(".mdx");
+
+  // NEW: parse comma-separated tags into an array
+  const parseTags = (value: string) =>
+    value
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
 
   const handleCreate = async () => {
     if (!title.trim()) {
@@ -58,20 +69,20 @@ export default function CreatePostScreen() {
         description: description?.trim() || "",
         coverImage: coverImage?.trim() || "",
         pubDate: new Date().toISOString().split("T")[0], // Just YYYY-MM-DD
+
+        // NEW: tags array (will become YAML in githubAPI.savePost)
+        tags: parseTags(tags),
       };
 
       // CREATE = savePost with NO sha
       const result = await githubAPI.savePost(filename, frontmatter, content);
 
-      // GitHub sometimes returns errors as JSON too — catch obvious ones
+      // GitHub sometimes returns errors as JSON too -- catch obvious ones
       if (result?.message && !result?.content) {
-        // Examples: "Invalid request", "Not Found", etc.
         Alert.alert("Error", result.message);
         return;
       }
 
-      // If the file already exists, GitHub often responds with 422 + a message
-      // Your wrapper returns JSON, so this is our friendly fallback:
       if (result?.status === 422) {
         Alert.alert("Error", "A post with that name already exists.");
         return;
@@ -125,7 +136,7 @@ export default function CreatePostScreen() {
             >
               <ThemedText variant="h1">Create New Post</ThemedText>
               <ThemedText variant="muted">
-                Start with a title — everything else can evolve.
+                Start with a title -- everything else can evolve.
               </ThemedText>
 
               <Card>
@@ -141,7 +152,7 @@ export default function CreatePostScreen() {
                 />
                 <View style={{ height: 10 }} />
                 <ThemedText variant="muted">
-                  Filename: {title.trim() ? slugFromTitle(title) : "—"}
+                  Filename: {title.trim() ? slugFromTitle(title) : "--"}
                 </ThemedText>
               </Card>
 
@@ -173,6 +184,26 @@ export default function CreatePostScreen() {
                 />
               </Card>
 
+              {/* NEW: Tags */}
+              <Card>
+                <ThemedText variant="label">Tags</ThemedText>
+                <View style={{ height: 8 }} />
+                <ThemedText variant="muted">
+                  Comma-separated (optional). Example: shadow work, birthdays, witchcraft
+                </ThemedText>
+                <View style={{ height: 10 }} />
+                <ThemedInput
+                  inputAccessoryViewID={
+                    Platform.OS === "ios" ? accessoryId : undefined
+                  }
+                  value={tags}
+                  onChangeText={setTags}
+                  placeholder="tag one, tag two, tag three"
+                  autoCapitalize="none"
+                  returnKeyType="done"
+                />
+              </Card>
+
               <Card strong>
                 <ThemedText variant="label">Content (MDX)</ThemedText>
                 <ThemedInput
@@ -184,7 +215,7 @@ export default function CreatePostScreen() {
                   placeholder="Write your post content here..."
                   multiline
                   textAlignVertical="top"
-                  style={{ minHeight: 420 }} // <-- grows beyond this (no max height)
+                  style={{ minHeight: 420 }}
                 />
               </Card>
 
