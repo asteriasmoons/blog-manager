@@ -53,7 +53,7 @@
     },
     "owner": "asteriamoon",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "sdkVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/28319a78-d5b1-4345-bdcc-372ce5ecda76"
