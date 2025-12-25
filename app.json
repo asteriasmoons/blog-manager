@@ -44,6 +44,19 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "28319a78-d5b1-4345-bdcc-372ce5ecda76"
+      }
+    },
+    "owner": "asteriamoon",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/28319a78-d5b1-4345-bdcc-372ce5ecda76"
     }
   }
 }
