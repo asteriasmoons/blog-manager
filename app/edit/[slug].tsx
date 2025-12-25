@@ -13,7 +13,6 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 
 import { githubAPI } from "../../src/services/githubAPI";
@@ -44,7 +43,18 @@ export default function EditPostScreen() {
   const [description, setDescription] = useState("");
   const [coverImage, setCoverImage] = useState("");
   const [content, setContent] = useState("");
-  const [originalPubDate, setOriginalPubDate] = useState(""); 
+  const [originalPubDate, setOriginalPubDate] = useState("");
+
+  // NEW: tags (comma-separated in UI)
+  const [tags, setTags] = useState("");
+
+  // helper: normalize frontmatter tags into a comma string for the input
+  const tagsToInputString = (value: any) => {
+    if (!value) return "";
+    if (Array.isArray(value)) return value.filter(Boolean).join(", ");
+    if (typeof value === "string") return value;
+    return "";
+  };
 
   const loadPost = useCallback(async () => {
     try {
@@ -53,12 +63,15 @@ export default function EditPostScreen() {
 
       setTitle(frontmatter.title || "");
       setDescription(frontmatter.description || "");
-	  setOriginalPubDate(frontmatter.pubDate || "");
+      setOriginalPubDate(frontmatter.pubDate || "");
       setCoverImage(frontmatter.coverImage || "");
-      setContent(bodyContent);
+      setContent(bodyContent || "");
 
-	  const meta = await githubAPI.getPostMeta(slug as string);
-    setSha(meta.sha);
+      // NEW: load tags into the input (comma-separated)
+      setTags(tagsToInputString(frontmatter.tags));
+
+      const meta = await githubAPI.getPostMeta(slug as string);
+      setSha(meta.sha);
     } catch (error) {
       Alert.alert("Error", "Could not load post");
     } finally {
@@ -79,11 +92,15 @@ export default function EditPostScreen() {
     setSaving(true);
     try {
       const frontmatter = {
-        title,
-        description,
-        coverImage,
+        title: title.trim(),
+        description: description?.trim() || "",
+        coverImage: coverImage?.trim() || "",
         pubDate: originalPubDate,
+
+        // NEW: pass tags through (string is fine; githubAPI.savePost accepts string or array)
+        tags: tags,
       };
+
       await githubAPI.savePost(slug as string, frontmatter, content, sha);
 
       Alert.alert("Success", "Post updated!", [
@@ -119,9 +136,7 @@ export default function EditPostScreen() {
   if (loading) {
     return (
       <Screen>
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator size="large" color={lystaria.colors.accent} />
         </View>
       </Screen>
@@ -163,15 +178,12 @@ export default function EditPostScreen() {
         >
           <Screen>
             <ScrollView
-              // These three lines are what make “scroll to the bottom while keyboard is open” work reliably on iOS
               keyboardShouldPersistTaps="handled"
-              keyboardDismissMode={
-                Platform.OS === "ios" ? "interactive" : "on-drag"
-              }
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
               automaticallyAdjustKeyboardInsets={true}
               contentContainerStyle={{
                 gap: 12,
-                paddingBottom: 220, // <- big bottom space so the last lines can scroll above the keyboard
+                paddingBottom: 220,
               }}
             >
               <ThemedText variant="h1">{prettyTitle}</ThemedText>
@@ -182,9 +194,7 @@ export default function EditPostScreen() {
               <Card>
                 <ThemedText variant="label">Title</ThemedText>
                 <ThemedInput
-                  inputAccessoryViewID={
-                    Platform.OS === "ios" ? accessoryId : undefined
-                  }
+                  inputAccessoryViewID={Platform.OS === "ios" ? accessoryId : undefined}
                   value={title}
                   onChangeText={setTitle}
                   placeholder="Post title"
@@ -195,9 +205,7 @@ export default function EditPostScreen() {
               <Card>
                 <ThemedText variant="label">Description</ThemedText>
                 <ThemedInput
-                  inputAccessoryViewID={
-                    Platform.OS === "ios" ? accessoryId : undefined
-                  }
+                  inputAccessoryViewID={Platform.OS === "ios" ? accessoryId : undefined}
                   value={description}
                   onChangeText={setDescription}
                   placeholder="A short description"
@@ -210,9 +218,7 @@ export default function EditPostScreen() {
               <Card>
                 <ThemedText variant="label">Cover Image URL</ThemedText>
                 <ThemedInput
-                  inputAccessoryViewID={
-                    Platform.OS === "ios" ? accessoryId : undefined
-                  }
+                  inputAccessoryViewID={Platform.OS === "ios" ? accessoryId : undefined}
                   value={coverImage}
                   onChangeText={setCoverImage}
                   placeholder="https://..."
@@ -221,18 +227,33 @@ export default function EditPostScreen() {
                 />
               </Card>
 
+              {/* NEW: Tags */}
+              <Card>
+                <ThemedText variant="label">Tags</ThemedText>
+                <View style={{ height: 8 }} />
+                <ThemedText variant="muted">
+                  Comma-separated (optional). Example: shadow work, birthdays, witchcraft
+                </ThemedText>
+                <View style={{ height: 10 }} />
+                <ThemedInput
+                  inputAccessoryViewID={Platform.OS === "ios" ? accessoryId : undefined}
+                  value={tags}
+                  onChangeText={setTags}
+                  placeholder="tag one, tag two, tag three"
+                  autoCapitalize="none"
+                  returnKeyType="done"
+                />
+              </Card>
+
               <Card strong>
                 <ThemedText variant="label">Content (MDX)</ThemedText>
                 <ThemedInput
-                  inputAccessoryViewID={
-                    Platform.OS === "ios" ? accessoryId : undefined
-                  }
+                  inputAccessoryViewID={Platform.OS === "ios" ? accessoryId : undefined}
                   value={content}
                   onChangeText={setContent}
                   placeholder="Write your post content here..."
                   multiline
                   textAlignVertical="top"
-                  // “infinite” feel: it can grow, but starts large enough to be usable
                   style={{ minHeight: 520 }}
                 />
               </Card>
@@ -274,10 +295,7 @@ export default function EditPostScreen() {
                   onPress={Keyboard.dismiss}
                   style={{ paddingVertical: 6, paddingHorizontal: 10 }}
                 >
-                  <ThemedText
-                    variant="label"
-                    style={{ color: lystaria.colors.accent }}
-                  >
+                  <ThemedText variant="label" style={{ color: lystaria.colors.accent }}>
                     Done
                   </ThemedText>
                 </Pressable>
